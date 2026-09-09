@@ -23,6 +23,13 @@ timeout /t 2 /nobreak >nul
 
 node patch-core.js --restore > restore-log.txt 2>&1
 type restore-log.txt
+
+set RES=C:\Program Files\ZCode\resources
+if exist "%RES%\glm\zcode.cjs.modelhub-backup" (
+  copy /y "%RES%\glm\zcode.cjs.modelhub-backup" "%RES%\glm\zcode.cjs" >nul
+  echo [√] engine restored (zcode.cjs)
+)
+
 echo.
 echo ===== done. You can close this window. =====
 pause

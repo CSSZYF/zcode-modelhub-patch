@@ -1,58 +1,72 @@
 # model-hub — ZCode 模型拉取补丁
 
-给 **ZCode 桌面版** 的「模型供应商」设置注入「拉取模型」能力。非官方补丁，纯本地修改，不联网上报任何数据。
+给 **ZCode 桌面版** 注入第三方模型管理能力。非官方补丁，纯本地修改，不联网上报任何数据。
 
 [English](#english) | 中文
 
 ## 功能
 
-- ✅ **添加渠道 / 编辑渠道** 页面均有「拉取模型」按钮
-- ✅ 一键拉取任意 OpenAI 兼容端点的全量模型列表（自动尝试 `/v1` 路径回退）
+- ✅ **拉取模型**按钮（添加渠道 / 编辑渠道 页均有）：一键拉取任意 OpenAI 兼容端点的全量模型列表
+- ✅ **方言感知回退**：anthropic 渠道 `/v1/models` 优先、openai 系 `/models` 优先、gemini 走 `v1beta`——用户**不需要**手动填写 `/v1`，两种路径自动尝试
+- ✅ **按方言认证**：anthropic 自动附带 `x-api-key` + `Authorization: Bearer` 双头，gemini 走 `x-goog-api-key`
+- ✅ **请求头模拟**（编辑渠道页）：Claude (`claude-cli`) / Codex (`codex_cli_rs`) 全套预设请求头
+  - 逐条勾选：勾上 = 生效，取消勾选 = 从渠道移除
+  - 值可编辑；`session_id` 一键换新 UUID
+  - 一键**清除全部模拟**
+  - **粘性生效**：修改模型配置不会再把配好的头剥掉
+- ✅ 拉取 / 视觉探测自动**携带渠道的模拟请求头**（验客户端指纹的端点也能拉）
+- ✅ **视觉能力实测**：对勾选模型发送 1×1 测试图，OpenAI 与 Anthropic 两种协议分别适配，用真实响应判定，不靠名字猜
 - ✅ ZCode 风格选择面板：搜索、全选 / 全不选、逐个勾选
-- ✅ **视觉能力实测**：对勾选模型逐个发送 1×1 测试图（并发 4），用真实响应判定是否支持图片输入，不靠模型名瞎猜
-- ✅ 写入即生效，视觉标记对应模型编辑器里的 输入类型 → 图片
+- ✅ **全消息可编辑**（可选引擎补丁）：解除"只有最后一条消息能编辑"的限制
+- ✅ 外科手术式安装：原数据区逐字节保留，原生模块零改动，全程约 5~30 秒
+- ✅ 安装路径自动探测（注册表 + 常见位置），装在非 C 盘也能识别
 
 ## 安装
 
 1. 确保已安装 [Node.js](https://nodejs.org)（任意 LTS 版本）
-2. 下载本仓库（Code → Download ZIP），解压
+2. 下载本仓库 Release 中的 `modelhub-zcode-patch-vX.X.X.zip`（或 Code → Download ZIP），解压
 3. 双击 `一键安装补丁.cmd`，UAC 弹窗点「是」
-4. 脚本会自动：定位 ZCode 安装目录 → 关闭 ZCode → 备份原版 `app.asar` → 打补丁（约 5~30 秒）
-5. 打开 ZCode：设置 → 模型供应商 → 添加 / 编辑渠道
+   - Step 1: 修改 `app.asar`（拉取模型 / 请求头模拟 / 视觉探测）
+   - Step 2: 可选修改 `zcode.cjs`（全消息可编辑）
+4. 打开 ZCode：设置 → 模型供应商 → 添加 / 编辑渠道
 
-> ZCode 自动更新会覆盖补丁，更新后重新运行一次安装脚本即可。
-> 脚本自动探测安装路径（注册表 + 常见位置），装在非 C 盘也能识别；也可手动指定：`node patch-core.js "D:\ZCode\resources"`
+> ZCode 自动更新会覆盖补丁，更新后重新运行安装脚本即可。
+> 需要手动指定路径时：`node patch-core.js "D:\ZCode\resources"`
 
 ## 还原
 
-双击 `还原补丁.cmd`，恢复官方原版 `app.asar`。
+双击 `还原补丁.cmd`，同时恢复官方原版 `app.asar` 与 `zcode.cjs`。
 
 ## 使用
 
-1. 添加渠道，填好 **BaseURL**（如 `https://api.example.com/v1`）和 **API Key**
-2. 点击 **「拉取模型」**
-3. 在弹出的面板中勾选需要的模型
-4. 需要确认视觉能力时点 **「探测视觉(勾选项)」**——每个模型发送一次极小请求（16 tokens）
-5. 点 **「确认添加」**，完成
+1. 添加渠道，填好 **BaseURL**（带不带 `/v1` 都可以）和 **API Key**，选择 API 格式
+2. 点击 **「拉取模型」** → 在面板中勾选需要的模型 → **「确认添加」**
+3. （可选）点击 **「请求头模拟」** → 选择 Claude / Codex 预设 → 勾选需要的头 → **「应用」**
+4. （可选）勾选模型后点 **「探测视觉(勾选项)」** 实测识图能力
+5. （可选）点 **「探测视觉(全部)」** 或 **「确认添加」**
 
 ## 工作原理
 
 ZCode 的模型供应商配置存储在 `~/.zcode/v2/config.json`（provider 表），
-模型的图片 / 视频输入能力由 `models.<id>.modalities.input` 数组决定（包含 `"image"` 即支持识图）。
-官方界面未提供批量拉取入口，本补丁在其渲染层注入按钮，并通过主进程 IPC 完成对
-`{baseURL}/models` 的请求（不受 CORS 限制）。
+模型的图片 / 视频输入能力由 `models.<id>.modalities.input` 数组决定（包含 `"image"` 即支持识图），
+provider 级自定义请求头由 `provider.headers` 对象承载（官方原生支持，仅缺 UI 入口）。
 
-安装采用**外科手术式**重打包：解包仅用于读取，重打包时原数据区逐字节保留、
-仅追加改动文件并重写头部索引，`app.asar.unpacked` 中的原生模块（终端依赖）完全不动。
-安装前自动备份为 `app.asar.modelhub-backup`，`还原补丁.cmd` 可完整恢复。
+本补丁在其渲染层注入按钮与面板，并通过主进程 IPC 完成对 `{baseURL}/models` 的请求（不受 CORS 限制），
+按渠道的 API 格式自动选择 URL 候选与认证头。视觉探测对 OpenAI 走 `chat/completions` + `image_url`，
+对 Anthropic 走 `v1/messages` + 原生 base64 image block。
+
+安装采用**外科手术式**重打包：解包仅用于读取，重打包时原数据区逐字节保留、仅追加改动文件并重写头部索引，
+`app.asar.unpacked` 中的原生模块（终端依赖）完全不动。安装前自动备份为 `app.asar.modelhub-backup`，
+`还原补丁.cmd` 可完整恢复。引擎补丁同样独立备份 `zcode.cjs`。
 
 ## 文件说明
 
 | 文件 | 作用 |
 |---|---|
-| `一键安装补丁.cmd` | 安装入口（自动请求管理员权限） |
-| `还原补丁.cmd` | 卸载 / 还原入口 |
-| `patch-core.js` | 补丁核心：定位、校验锚点、改写、重打包 |
+| `一键安装补丁.cmd` | 安装入口（自动请求管理员权限，两步：asar + 引擎可选） |
+| `还原补丁.cmd` | 卸载 / 还原入口（asar + 引擎一起还原） |
+| `patch-core.js` | 补丁核心：定位、校验锚点、改写、外科手术式重打包 |
+| `engine-patch.js` | 可选引擎补丁：全消息可编辑 |
 | `asar.js` | 零依赖 asar 解包 / 打包 / 手术式改写实现 |
 | `VERSION.txt` | 适配的 ZCode 版本与构建时间 |
 
@@ -66,21 +80,21 @@ ZCode 的模型供应商配置存储在 `~/.zcode/v2/config.json`（provider 表
 <a name="english"></a>
 # model-hub — Model Pull Patch for ZCode Desktop
 
-Injects a "Pull Models" capability into the Model Provider settings of the ZCode desktop app.
+Injects third-party model management into the ZCode desktop app.
 
-- "Pull Models" button on both the **add-provider** and **edit-provider** pages
-- Fetches the full model list from any OpenAI-compatible endpoint (auto `/v1` fallback)
-- ZCode-styled picker: search, select all/none, per-model checkboxes
-- **Empirical vision probing**: sends a 1×1 test image to each selected model (concurrency 4) and flags real image-input support — no name-based guessing
-- One-click restore script; auto-backup before install (`app.asar.modelhub-backup`)
-- Auto-detects the ZCode install location (registry + common paths), or pass it manually: `node patch-core.js "D:\ZCode\resources"`
+- "Pull Models" button on both **add-provider** and **edit-provider** pages
+- **Dialect-aware fallback**: anthropic providers try `/v1/models` first, OpenAI-style try `/models` first, gemini uses `v1beta` — no need to type `/v1` manually
+- **Per-dialect auth**: anthropic sends `x-api-key` + `Authorization: Bearer`, gemini sends `x-goog-api-key`
+- **Header simulation** (edit-provider page): full Claude (`claude-cli`) / Codex (`codex_cli_rs`) request header presets; check = applied, uncheck = removed; one-click clear-all; headers are sticky across model saves
+- Pull / vision probing automatically carry the channel's simulated headers (works on client-fingerprint-gated endpoints)
+- **Empirical vision probing**: 1×1 test image per model via `chat/completions` (OpenAI) or `v1/messages` (Anthropic)
+- ZCode-styled picker with search and per-model selection
+- Optional engine patch: **edit ALL user messages**, not just the latest one
+- Surgical asar repack, auto-backup, one-click restore, install path auto-detection
 
 **Requirements:** Windows, ZCode desktop, [Node.js](https://nodejs.org)
 
-**Usage:** download ZIP → run `一键安装补丁.cmd` as admin → restart ZCode → Settings → Model Providers.
-
-ZCode updates overwrite the patch — re-run the installer after updates. If anchors change in a
-future version, the installer fails loudly and touches nothing.
+**Usage:** download the release ZIP → run `一键安装补丁.cmd` as admin → restart ZCode → Settings → Model Providers.
 
 ## License
 

@@ -21,8 +21,15 @@ echo [i] Closing ZCode...
 taskkill /IM ZCode.exe /F >nul 2>&1
 timeout /t 2 /nobreak >nul
 
+echo [i] Step 1/2: patching app.asar (model pull, header simulation)...
 node patch-core.js > install-log.txt 2>&1
 type install-log.txt
+
+echo.
+echo [i] Step 2/2: optional engine patch (edit ALL user messages)...
+node engine-patch.js >> install-log.txt 2>&1
+type install-log.txt | find /i "engine"
+
 echo.
 echo ===== done. You can close this window. =====
 pause
