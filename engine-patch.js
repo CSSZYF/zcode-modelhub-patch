@@ -23,7 +23,13 @@ const P1_NEW = 'else if(y.kind==="userInput")this.entityIdByRowId.get(y.rowId)&&
 const P2_OLD = "resolveEditTargetByEntityId(t){if(t!==this.currentEditableEntityId)return null;let r=this.editTargetByEntityId.get(t);";
 const P2_NEW = "resolveEditTargetByEntityId(t){let r=this.editTargetByEntityId.get(t);";
 
-if (!fs.existsSync(file + ".modelhub-backup")) fs.copyFileSync(file, file + ".modelhub-backup");
+const backup = file + ".modelhub-backup";
+if (!fs.existsSync(backup)) {
+  const bt = backup + ".tmp";
+  fs.copyFileSync(file, bt);
+  if (fs.statSync(bt).size !== fs.statSync(file).size) { fs.rmSync(bt, { force: true }); console.error("FAIL backup verify - aborting, nothing changed"); process.exit(1); }
+  fs.renameSync(bt, backup);
+}
 let src = fs.readFileSync(file, "utf8");
 
 for (const [label, oldS, newS] of [["P1", P1_OLD, P1_NEW], ["P2", P2_OLD, P2_NEW]]) {
@@ -33,16 +39,14 @@ for (const [label, oldS, newS] of [["P1", P1_OLD, P1_NEW], ["P2", P2_OLD, P2_NEW
   else { console.error(`FAIL ${label}: anchor count = ${n}`); process.exit(1); }
 }
 
-const tmp = file + ".modelhub-tmp";
+const tmp = file + ".modelhub-tmp.cjs";
 fs.writeFileSync(tmp, src, "utf8");
 try {
   require("child_process").execSync(`node --check "${tmp}"`, { stdio: "pipe" });
 } catch (e) {
   fs.rmSync(tmp, { force: true });
-  fs.copyFileSync(file + ".modelhub-backup", file);
-  console.error("FAIL syntax check on patched engine - original restored, nothing changed");
+  console.error("FAIL syntax check on patched engine - original untouched, nothing changed");
   process.exit(1);
 }
-fs.rmSync(tmp, { force: true });
-fs.writeFileSync(file, src, "utf8");
+fs.renameSync(tmp, file);
 console.log("ENGINE_PATCH_DONE");

@@ -19,15 +19,25 @@ if %errorlevel% neq 0 (
 
 echo [i] Closing ZCode...
 taskkill /IM ZCode.exe /F >nul 2>&1
+timeout /t 3 /nobreak >nul
+taskkill /IM ZCode.exe /F >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 node patch-core.js --restore > restore-log.txt 2>&1
 type restore-log.txt
 
-set RES=C:\Program Files\ZCode\resources
-if exist "%RES%\glm\zcode.cjs.modelhub-backup" (
-  copy /y "%RES%\glm\zcode.cjs.modelhub-backup" "%RES%\glm\zcode.cjs" >nul
-  echo [√] engine restored (zcode.cjs)
+set GLM=C:\Program Files\ZCode\resources\glm
+if exist "%GLM%\zcode.cjs.modelhub-backup" (
+  copy /y "%GLM%\zcode.cjs.modelhub-backup" "%GLM%\zcode.cjs.tmp" >nul
+  for %%A in ("%GLM%\zcode.cjs.modelhub-backup") do set BS=%%~zA
+  for %%A in ("%GLM%\zcode.cjs.tmp") do set TS=%%~zA
+  if "%BS%"=="%TS%" (
+    move /y "%GLM%\zcode.cjs.tmp" "%GLM%\zcode.cjs" >nul
+    echo [OK] engine restored - zcode.cjs
+  ) else (
+    del /f "%GLM%\zcode.cjs.tmp" >nul 2>&1
+    echo [x] engine restore size mismatch - skipped, engine left unchanged
+  )
 )
 
 echo.

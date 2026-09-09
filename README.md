@@ -17,8 +17,11 @@
 - ✅ 拉取 / 视觉探测自动**携带渠道的模拟请求头**（验客户端指纹的端点也能拉）
 - ✅ **视觉能力实测**：对勾选模型发送 1×1 测试图，OpenAI 与 Anthropic 两种协议分别适配，用真实响应判定，不靠名字猜
 - ✅ ZCode 风格选择面板：搜索、全选 / 全不选、逐个勾选
+- ✅ **最终态语义**：确认添加后模型列表 = 勾选的模型（未勾选的自动移除，手动添加的保留）
+- ✅ **删除持久化**：删除的模型写入 `zcode.deletedModels`，不再被目录同步复活
 - ✅ **全消息可编辑**（可选引擎补丁）：解除"只有最后一条消息能编辑"的限制
 - ✅ 外科手术式安装：原数据区逐字节保留，原生模块零改动，全程约 5~30 秒
+- ✅ **原子安全**：所有写操作 = 临时文件 + 尺寸校验 + 改名，进程占用时安全失败而非写坏文件
 - ✅ 安装路径自动探测（注册表 + 常见位置），装在非 C 盘也能识别
 
 ## 安装
@@ -89,6 +92,9 @@ Injects third-party model management into the ZCode desktop app.
 - Pull / vision probing automatically carry the channel's simulated headers (works on client-fingerprint-gated endpoints)
 - **Empirical vision probing**: 1×1 test image per model via `chat/completions` (OpenAI) or `v1/messages` (Anthropic)
 - ZCode-styled picker with search and per-model selection
+- Final-state semantics: confirmed selection becomes the channel model list (manual entries preserved)
+- Deletions persist to `zcode.deletedModels` — no more resurrecting models
+- Atomic writes everywhere: temp file + size verify + rename, fails safe when files are locked
 - Optional engine patch: **edit ALL user messages**, not just the latest one
 - Surgical asar repack, auto-backup, one-click restore, install path auto-detection
 
