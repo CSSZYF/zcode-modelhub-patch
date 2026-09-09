@@ -26,10 +26,12 @@ node patch-core.js > install-log.txt 2>&1
 type install-log.txt
 
 echo.
-echo [i] Step 2/2: optional engine patch (edit ALL user messages)...
+choice /C YN /M "Step 2/2: install optional ENGINE patch - edit ALL user messages (Y/N)"
+if errorlevel 2 goto done
 node engine-patch.js >> install-log.txt 2>&1
 type install-log.txt | find /i "engine"
 
+:done
 echo.
 echo ===== done. You can close this window. =====
 pause

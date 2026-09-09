@@ -33,5 +33,16 @@ for (const [label, oldS, newS] of [["P1", P1_OLD, P1_NEW], ["P2", P2_OLD, P2_NEW
   else { console.error(`FAIL ${label}: anchor count = ${n}`); process.exit(1); }
 }
 
+const tmp = file + ".modelhub-tmp";
+fs.writeFileSync(tmp, src, "utf8");
+try {
+  require("child_process").execSync(`node --check "${tmp}"`, { stdio: "pipe" });
+} catch (e) {
+  fs.rmSync(tmp, { force: true });
+  fs.copyFileSync(file + ".modelhub-backup", file);
+  console.error("FAIL syntax check on patched engine - original restored, nothing changed");
+  process.exit(1);
+}
+fs.rmSync(tmp, { force: true });
 fs.writeFileSync(file, src, "utf8");
 console.log("ENGINE_PATCH_DONE");
