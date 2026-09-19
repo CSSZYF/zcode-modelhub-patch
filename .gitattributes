@@ -1,0 +1,7 @@
+# 发布文件的行尾必须字节稳定，禁止 git 自动转换：
+#   - .cmd 必须是 CRLF（cmd.exe 的 goto/标签对 LF 敏感）
+#   - 注入片段（snippet-*）保持 LF，与已验证的注入字节一致
+*.cmd -text
+snippet-preload.txt -text
+snippet-main.js -text
+snippet-helper.js -text
