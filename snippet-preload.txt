@@ -1,0 +1,1 @@
+modelhubFetchModels:(e,t,n,r)=>_.ipcRenderer.invoke("modelhub:fetch-models",{baseUrl:e,apiKey:t,headers:n,dialect:r}),modelhubProbeVision:(e,t,n,r,s)=>_.ipcRenderer.invoke("modelhub:probe-vision",{baseUrl:e,apiKey:t,model:n,headers:r,dialect:s}),
