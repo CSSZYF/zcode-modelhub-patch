@@ -1,6 +1,11 @@
 适配版本: ZCode Desktop 3.14.1（模型设置页重构 / Personal Model 架构）
-补丁版本: v2.1.1
+补丁版本: v2.1.2
 构建时间: 2026-09-21
+
+v2.1.2 修复:
+- 关闭启动时的「功能开关配置拉取」（GET /api/v1/client/configs，请求头携带持久设备号 device_mid）：
+  两个灰度开关（desktop-context-prompt / renderer-action-trace）改用默认值，不再发起该请求。
+  （强制更新检查走的是另一条匿名请求，保持不动。）
 
 v2.1.1 修复:
 - 面板在「弹窗内」不可点击的问题：思考档位表 / 拉取面板 / 请求头面板现在会挂载到

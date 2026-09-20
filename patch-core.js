@@ -94,6 +94,11 @@ const OTEL_MARK = 'OTEL_EXPORTER_OTLP_ENDPOINT:"https://';
 const CRASH_OLD = "var Vf=Hf(w,!0);";
 const CRASH_NEW = "var Vf=Hf(w,!1);";
 
+// 3.14.1 NEW: client-config fetch for feature rollouts - a startup GET that carries device_mid
+// in its headers; returning null makes both rollouts fall back to their defaults (no request).
+const CFG_OLD = ",n=new URL(`${tt(o).origin}/api/v1/client/configs`);";
+const CFG_NEW = ",n=new URL(`${tt(o).origin}/api/v1/client/configs`);return null;";
+
 // ---------------------------------------------------------------- helpers ---
 function die(msg) { console.error("\n[x] " + msg); process.exit(1); }
 function log(m) { console.log("[*] " + m); }
@@ -283,6 +288,7 @@ const anchors = [
   ["事件上报核心", countOf(core, CORE_OLD), 1],
   ["OTEL 端点", countOf(otel, OTEL_MARK), 1],
   ["崩溃上报开关", countOf(m, CRASH_OLD), 1],
+  ["功能开关配置拉取", countOf(m, CFG_OLD), 1],
 ];
 for (const [name, n, want] of anchors) console.log("  " + (n === want ? "OK  " : "FAIL") + " " + name + ": " + n);
 if (checkOnly) {
@@ -324,6 +330,7 @@ core = applyOnce(core, CORE_OLD, CORE_NEW, "事件上报核心（sendReportAttem
   console.log("  OK   OTEL 上报端点已清空");
 }
 m = applyOnce(m, CRASH_OLD, CRASH_NEW, "崩溃上报开关（远程->本地）");
+m = applyOnce(m, CFG_OLD, CFG_NEW, "功能开关配置拉取（带设备号的 GET）");
 
 // ---------------------------------------------------------------- repack ----
 log("外科手术式重打包（数据区原样搬运，仅追加改动）...");
@@ -364,6 +371,7 @@ const checks = [
   ["事件上报核心 已关", vEntry(CORE_REL).includes("async function x(C,S,I,k){return;")],
   ["OTEL 端点 已清空", vEntry(OTEL_REL).includes('OTEL_EXPORTER_OTLP_ENDPOINT:""') && vEntry(OTEL_REL).includes('OTEL_EXPORTER_OTLP_HEADERS:""') && !vEntry(OTEL_REL).includes("proj-xtrace")],
   ["崩溃上报 已本地化", vEntry(MAIN_REL).includes("var Vf=Hf(w,!1);")],
+  ["配置拉取 已关", vEntry(MAIN_REL).includes("client/configs`);return null;")],
 ];
 let allOk = true;
 for (const [name, ok] of checks) {
