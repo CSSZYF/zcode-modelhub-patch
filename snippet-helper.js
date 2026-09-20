@@ -1,12 +1,13 @@
 ;window.__mhToast=(msg,ok=true)=>{try{const d=document.createElement('div');d.textContent=msg;d.style.cssText='position:fixed;right:18px;bottom:18px;z-index:99999;max-width:420px;padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.5;background:#18181b;color:#fafafa;border:1px solid '+(ok?'#3f3f46':'#b91c1c')+';box-shadow:0 8px 24px rgba(0,0,0,.45);opacity:0;transition:opacity .2s,transform .2s;transform:translateY(6px)';document.body.appendChild(d);requestAnimationFrame(()=>{d.style.opacity='1';d.style.transform='translateY(0)'});setTimeout(()=>{d.style.opacity='0';d.style.transform='translateY(6px)';setTimeout(()=>d.remove(),300)},ok?3500:6000)}catch(e){}};
 ;window.__mhDialect=function(fmt){try{if(fmt==='anthropic-messages')return'anthropic';if(fmt==='openai-responses')return'openai';if(fmt==='openai-chat-completions')return'openai-compatible';return String(fmt||'openai-compatible')}catch(e){return'openai-compatible'}};
+;window.__mhHost=function(el){try{return(el&&el.closest&&el.closest('[role="dialog"]'))||document.body}catch(e){return document.body}};
 ;window.__mhPull=async function(ctx){try{
   if(!window.zcode||!window.zcode.modelhubFetchModels){window.__mhToast('补丁未加载',!1);return}
   const dialect=window.__mhDialect(ctx.format);
   const rr=await window.zcode.modelhubFetchModels(ctx.baseUrl,ctx.apiKey,ctx.provider&&ctx.provider.headers,dialect);
   if(!rr||!rr.ok){window.__mhToast('拉取失败：'+((rr&&rr.error)||'未知错误'),!1);return}
   if(!rr.models.length){window.__mhToast('该端点返回 0 个模型',!1);return}
-  window.__mhPick(rr.models,{baseUrl:ctx.baseUrl,apiKey:ctx.apiKey,headers:ctx.provider&&ctx.provider.headers,dialect:dialect,preselect:(ctx.models||[]).map(m=>m.modelId),onConfirm:async sel=>{
+  window.__mhPick(rr.models,{baseUrl:ctx.baseUrl,apiKey:ctx.apiKey,headers:ctx.provider&&ctx.provider.headers,dialect:dialect,preselect:(ctx.models||[]).map(m=>m.modelId),anchor:ctx.anchor,onConfirm:async sel=>{
     try{
       const cur=(ctx.models||[]).map(m=>m.modelId);
       const fetched=new Set(rr.models.map(m=>m.id));
@@ -24,10 +25,11 @@
 ;window.__mhPick=function(items,opt){try{
   const old=document.getElementById('mh-picker-root');if(old)old.remove();
   const __prev=new Set(opt&&opt.preselect||[]);const S={items:items.map(m=>({id:m.id,vision:false,checked:__prev.size===0?true:__prev.has(m.id),probing:false}))};
+  const host=window.__mhHost(opt&&opt.anchor),inDialog=host!==document.body;
   const root=document.createElement('div');root.id='mh-picker-root';
-  root.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  root.style.cssText='position:'+(inDialog?'absolute':'fixed')+';inset:0;z-index:'+(inDialog?'60':'99998')+';pointer-events:auto;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
   const panel=document.createElement('div');
-  panel.style.cssText='width:600px;max-width:92vw;max-height:76vh;display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
+  panel.style.cssText='width:600px;max-width:'+(inDialog?'calc(100% - 16px)':'92vw')+';max-height:'+(inDialog?'calc(100% - 16px)':'76vh')+';display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
   const head=document.createElement('div');
   head.style.cssText='padding:12px 16px;border-bottom:1px solid #2e2e33;display:flex;align-items:center;justify-content:space-between';
   head.innerHTML='<span style="font-weight:600">\u9009\u62e9\u8981\u6dfb\u52a0\u7684\u6a21\u578b</span>';
@@ -48,7 +50,7 @@
   const ok=document.createElement('button');ok.textContent='\u786e\u8ba4\u6dfb\u52a0';
   ok.style.cssText='background:#3b82f6;border:none;border-radius:8px;padding:7px 16px;color:#fff;font-weight:600;cursor:pointer';
   foot.append(info,cancel,ok);
-  panel.append(head,bar,list,foot);root.appendChild(panel);document.body.appendChild(root);
+  panel.append(head,bar,list,foot);root.appendChild(panel);host.appendChild(root);
   root.onmousedown=e=>{if(e.target===root)close()};
   function close(){root.remove();if(opt.onCancel)opt.onCancel()}
   function esc(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',esc)}}
@@ -102,7 +104,7 @@
   probeAll.onclick=()=>{S.items.forEach(i=>i.checked=true);rows.forEach(r=>{r.querySelector('input').checked=true});stat();doProbe(S.items)};
   ok.onclick=()=>{const sel=S.items.filter(i=>i.checked).map(i=>({id:i.id,vision:i.vision}));root.remove();document.removeEventListener('keydown',esc);if(sel.length&&opt.onConfirm)opt.onConfirm(sel)};
 }catch(e){console.error('[modelhub] picker error',e);if(window.__mhToast)window.__mhToast('\u9009\u62e9\u5668\u5f02\u5e38\uff1a'+e,!1)}};
-;window.__mhHeaders=function(provider,save){try{
+;window.__mhHeaders=function(provider,save,anchorEl){try{
   const old=document.getElementById('mh-headers-root');if(old)old.remove();
   const PRESETS={
     claude:[
@@ -135,10 +137,11 @@
   const shared={};for(const _t in PRESETS)for(const _h of PRESETS[_t])shared[_h.k]=(shared[_h.k]||0)+1;
   const uuid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)});
   function loadTab(t){tab=t;if(!S[t])S[t]=PRESETS[t].map(h=>({k:h.k,auto:h.auto,checked:cur[h.k]!==undefined,value:(shared[h.k]>1)?(h.auto?uuid():h.v):(cur[h.k]!==undefined?cur[h.k]:(h.auto?uuid():h.v))}));S[t].forEach(h=>{if(h.auto&&!h.value)h.value=uuid()});render()}
+  const host=window.__mhHost(anchorEl),inDialog=host!==document.body;
   const root=document.createElement('div');root.id='mh-headers-root';
-  root.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  root.style.cssText='position:'+(inDialog?'absolute':'fixed')+';inset:0;z-index:'+(inDialog?'60':'99998')+';pointer-events:auto;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
   const panel=document.createElement('div');
-  panel.style.cssText='width:640px;max-width:92vw;max-height:76vh;display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
+  panel.style.cssText='width:640px;max-width:'+(inDialog?'calc(100% - 16px)':'92vw')+';max-height:'+(inDialog?'calc(100% - 16px)':'76vh')+';display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
   const head=document.createElement('div');
   head.style.cssText='padding:12px 16px;border-bottom:1px solid #2e2e33;display:flex;align-items:center;justify-content:space-between';
   head.innerHTML='<span style="font-weight:600">请求头模拟</span><span style="color:#a1a1aa;font-size:12px">勾选=生效 · 取消勾选=移除 · 仅影响当前渠道</span>';
@@ -159,7 +162,7 @@
   const cancel=mkBtn('取消');cancel.onclick=close;
   const ok=document.createElement('button');ok.textContent='应用';ok.style.cssText='padding:7px 16px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-weight:600;cursor:pointer';
   foot.append(info,clear,cancel,ok);
-  panel.append(head,tabs,list,foot);root.appendChild(panel);document.body.appendChild(root);
+  panel.append(head,tabs,list,foot);root.appendChild(panel);host.appendChild(root);
   root.onmousedown=e=>{if(e.target===root)close()};
   function esc(ev){if(ev.key==='Escape'){close();document.removeEventListener('keydown',esc)}}
   document.addEventListener('keydown',esc);
@@ -197,17 +200,18 @@
     catch(e){if(window.__mhToast)window.__mhToast('写入失败：'+e,!1)}
   };
 }catch(e){console.error('[modelhub] headers error',e)}};
-;window.__mhLevels=function(current,cb){try{
+;window.__mhLevels=function(current,cb,anchorEl){try{
   const STD=[['off','关闭'],['on','开启'],['minimal','极低'],['low','低'],['medium','中'],['high','高'],['xhigh','极高'],['max','最高'],['ultra','极致']];
   const cur=Array.isArray(current)?current.slice():[];
   const curSet=new Set(cur);
   const stdIds=STD.map(function(p){return p[0]});
   const custom=cur.filter(function(v){return stdIds.indexOf(v)<0});
   const old=document.getElementById('mh-levels-root');if(old)old.remove();
+  const host=window.__mhHost(anchorEl),inDialog=host!==document.body;
   const root=document.createElement('div');root.id='mh-levels-root';
-  root.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  root.style.cssText='position:'+(inDialog?'absolute':'fixed')+';inset:0;z-index:'+(inDialog?'60':'99998')+';pointer-events:auto;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
   const panel=document.createElement('div');
-  panel.style.cssText='width:520px;max-width:92vw;max-height:76vh;display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
+  panel.style.cssText='width:520px;max-width:'+(inDialog?'calc(100% - 16px)':'92vw')+';max-height:'+(inDialog?'calc(100% - 16px)':'76vh')+';display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
   const head=document.createElement('div');
   head.style.cssText='padding:12px 16px;border-bottom:1px solid #26262b;font-weight:600';
   head.textContent='思考档位表 — 勾选该模型支持的档位（从低到高）';
@@ -244,5 +248,5 @@
   right.appendChild(mkBtn('取消',function(){root.remove()}));
   right.appendChild(mkBtn('确认',function(){const sel=STD.filter(function(p){return boxes[p[0]].checked}).map(function(p){return p[0]}).concat(custom);if(sel.length===0){window.__mhToast&&window.__mhToast('至少选择一个思考档位',!1);return}root.remove();if(cb)cb(sel)},true));
   foot.appendChild(left);foot.appendChild(right);panel.appendChild(foot);
-  root.appendChild(panel);document.body.appendChild(root);
+  root.appendChild(panel);host.appendChild(root);
 }catch(e){console.error('[modelhub] levels error',e)}};
