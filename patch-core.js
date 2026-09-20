@@ -2,16 +2,18 @@
 "use strict";
 // ============================================================================
 // model-hub ZCode patch - surgical installer
-//   Target layout: ZCode Desktop 3.14.0
-//     out/preload/index.cjs, out/main/index.js, out/host/chunk-*.js,
-//     out/renderer/assets/styles-*.js
+//   Target layout: ZCode Desktop 3.14.1
+//     out/preload/index.cjs, out/main/index.js, out/main/chunk-*.js (core/otel),
+//     out/host/chunk-*.js, out/renderer/assets/styles-*.js
 //
 //   Applies in one pass:
 //     1. model-hub bridges (preload)     -> zcode.modelhubFetchModels / modelhubProbeVision
 //     2. model-hub IPC handlers (main)   -> modelhub:fetch-models / modelhub:probe-vision
-//     3. model-hub UI (renderer)         -> pull-models button, header panel, picker, vision probe
+//     3. model-hub UI (renderer)         -> pull-models button, header panel, picker, vision probe,
+//                                           reasoning-levels table (思考档位表)
 //     4. host storage-preparation fix    -> custom agent command (e.g. keysmith) startup fix
-//     5. privacy: telemetry off          -> ARMS RUM + disk-usage scheduler + MCP report
+//     5. privacy: uploads off            -> ARMS RUM + disk-usage + MCP + event-report core
+//                                           + OTEL endpoint + crash remote flag
 //
 //   All writes are atomic (temp file + size verify + rename) and verified by read-back.
 //   Original app.asar is backed up to app.asar.modelhub-backup (see 还原补丁.cmd).
@@ -45,11 +47,19 @@ const HOST_NEW =
 const PRELOAD_ANCHOR = 'exposeInMainWorld("zcode",{connectRemote';
 const PRELOAD_NEW = 'exposeInMainWorld("zcode",{' + SNIP.preload + "connectRemote";
 
+// 3.14.1: models-editor component renamed mbn -> _bn, providerName helper nN -> Kk
 const MBN_ANCHOR =
-  "(0,$.jsx)(mbn,{providerId:e.providerId,providerName:nN(e),providerEnabled:e.enabled,providerAccess:e.config.access,models:G,onTestModel:s?De:void 0,onModelCommit:Oe,onModelEnabledChange:Ae,onDeleteModel:ke,onAddModel:je,onReorderModelIds:c?Me:void 0,settingsRevision:g??0},e.providerId)";
+  "(0,$.jsx)(_bn,{providerId:e.providerId,providerName:Kk(e),providerEnabled:e.enabled,providerAccess:e.config.access,models:G,onTestModel:s?De:void 0,onModelCommit:Oe,onModelEnabledChange:Ae,onDeleteModel:ke,onAddModel:je,onReorderModelIds:c?Me:void 0,settingsRevision:g??0},e.providerId)";
 const WRAP_PREFIX =
   "(0,$.jsxs)(`div`,{className:`space-y-2`,children:[(0,$.jsx)(`div`,{className:`flex justify-end gap-2`,children:[(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,onClick:()=>{try{window.__mhHeaders(e,__p=>{t&&t(__p)})}catch(__e){window.__mhToast&&window.__mhToast(`请求头面板异常：`+__e,!1)}},children:`请求头模拟`}),(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,disabled:l,onClick:()=>{try{window.__mhPull&&window.__mhPull({provider:e,baseUrl:E,apiKey:O,format:w,models:G,addModel:je,deleteModel:ke})}catch(__e){window.__mhToast&&window.__mhToast(`拉取面板异常：`+__e,!1)}},children:`拉取模型`})]}),";
 const WRAP_SUFFIX = "]}),";
+
+// 3.14.1 NEW: reasoning-levels table button, wrapped around the levels list editor (Fyn)
+const LEVELS_ANCHOR =
+  "(0,$.jsx)(Myn,{values:e.reasoningLevelValuesValue,overridden:r?r.has(`reasoningLevelValuesValue`):t?.optionSpecs?.reasoningLevel?.values!==void 0,addLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelAdd`}),deleteLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelDelete`}),onChange:e=>i({reasoningLevelValuesValue:e})})";
+const LEVELS_PREFIX =
+  "(0,$.jsxs)(`div`,{className:`space-y-2`,children:[(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,onClick:()=>{try{window.__mhLevels&&window.__mhLevels(e.reasoningLevelValuesValue,__p=>{i({reasoningLevelValuesValue:__p})})}catch(__e){window.__mhToast&&window.__mhToast(`档位表异常：`+__e,!1)}},children:`思考档位表`}),";
+const LEVELS_SUFFIX = "]}),";
 
 const TELEM = [
   {
@@ -71,6 +81,18 @@ const TELEM = [
     marker: "function cP(e,t){return;",
   },
 ];
+
+// 3.14.1 NEW: event-report telemetry core (chunk located by marker, not by file name)
+const CORE_MARK = "api/v1/event/report";
+const CORE_OLD = "async function x(C,S,I,k){let T=null;try{T=await e.loadAuthorization?.(k)??null}catch{}";
+const CORE_NEW = "async function x(C,S,I,k){return;let T=null;try{T=await e.loadAuthorization?.(k)??null}catch{}";
+
+// 3.14.1 NEW: OTEL exporter endpoint chunk (values blanked programmatically)
+const OTEL_MARK = 'OTEL_EXPORTER_OTLP_ENDPOINT:"https://';
+
+// 3.14.1 NEW: crash reporter remote flag (hardcoded !0 -> !1, keeps local-only reporter)
+const CRASH_OLD = "var Vf=Hf(w,!0);";
+const CRASH_NEW = "var Vf=Hf(w,!1);";
 
 // ---------------------------------------------------------------- helpers ---
 function die(msg) { console.error("\n[x] " + msg); process.exit(1); }
@@ -100,6 +122,18 @@ function atomicReplace(src, dst, expectSize) {
     die("校验失败: 临时文件 " + got + " 字节, 应为 " + expectSize + " - 已放弃, 原文件未动");
   }
   fs.renameSync(tmp, dst);
+}
+
+// blank a `KEY:"..."` string value (keeps the key, empties the value)
+function blankValue(src, key) {
+  const needle = key + ':"';
+  const i = src.indexOf(needle);
+  if (i < 0) return null;
+  if (src.indexOf(needle, i + 1) >= 0) return null;
+  const start = i + needle.length;
+  const end = src.indexOf('"', start);
+  if (end < 0) return null;
+  return src.slice(0, start) + src.slice(end);
 }
 
 function findResources(explicit) {
@@ -218,25 +252,37 @@ const RENDER_REL = found.rel;
 
 const hostHit = findIn("out/host", null, HOST_OLD, "host 存储初始化锚点");
 const HOST_REL = hostHit.rel;
+const coreHit = findIn("out/main", null, CORE_MARK, "事件上报核心");
+const CORE_REL = coreHit.rel;
+const otelHit = findIn("out/main", null, OTEL_MARK, "OTEL 上报端点");
+const OTEL_REL = otelHit.rel;
 log("preload:  " + PRELOAD_REL);
 log("main:     " + MAIN_REL);
 log("renderer: " + RENDER_REL);
 log("host:     " + HOST_REL);
+log("core:     " + CORE_REL);
+log("otel:     " + OTEL_REL);
 
 let p = preload0.toString("utf8");
 let m = main0.toString("utf8");
 let r = found.data.toString("utf8");
 let h = hostHit.data.toString("utf8");
+let core = coreHit.data.toString("utf8");
+let otel = otelHit.data.toString("utf8");
 
 // ------------------------------------------------------- anchor + state ------
 console.log("[*] 锚点检查");
 const anchors = [
   ["preload 桥接", countOf(p, PRELOAD_ANCHOR), 1],
   ["renderer 按钮锚点", countOf(r, MBN_ANCHOR), 1],
+  ["renderer 档位表锚点", countOf(r, LEVELS_ANCHOR), 1],
   ["host 存储修复锚点", countOf(h, HOST_OLD), 1],
   ["遥测 ARMS RUM", countOf(m, TELEM[0].old), 1],
   ["遥测 磁盘用量", countOf(m, TELEM[1].old), 1],
   ["遥测 MCP 上报", countOf(m, TELEM[2].old), 1],
+  ["事件上报核心", countOf(core, CORE_OLD), 1],
+  ["OTEL 端点", countOf(otel, OTEL_MARK), 1],
+  ["崩溃上报开关", countOf(m, CRASH_OLD), 1],
 ];
 for (const [name, n, want] of anchors) console.log("  " + (n === want ? "OK  " : "FAIL") + " " + name + ": " + n);
 if (checkOnly) {
@@ -257,15 +303,27 @@ log((fs.existsSync(backupPath) ? "刷新备份" : "备份原版") + " -> app.asa
 }
 
 // ---------------------------------------------------------------- apply -----
-console.log("[*] 改写四个文件（内存中完成）...");
+console.log("[*] 改写六个文件（内存中完成）...");
 p = applyOnce(p, PRELOAD_ANCHOR, PRELOAD_NEW, "preload 桥接");
 m = m + "\n" + SNIP.main;
 console.log("  OK   main IPC 处理器（追加）");
 r = applyOnce(r, MBN_ANCHOR, WRAP_PREFIX + MBN_ANCHOR + WRAP_SUFFIX, "renderer 按钮行");
+r = applyOnce(r, LEVELS_ANCHOR, LEVELS_PREFIX + LEVELS_ANCHOR + LEVELS_SUFFIX, "renderer 档位表按钮行");
 r = r + "\n" + SNIP.helper;
 console.log("  OK   renderer 功能块（追加）");
 h = applyOnce(h, HOST_OLD, HOST_NEW, "host 存储初始化修复");
 for (const t of TELEM) m = applyOnce(m, t.old, t.neu, t.label, t.marker);
+core = applyOnce(core, CORE_OLD, CORE_NEW, "事件上报核心（sendReportAttempt）");
+{
+  const before = otel;
+  otel = blankValue(otel, "OTEL_EXPORTER_OTLP_ENDPOINT");
+  if (otel === null) die("OTEL_EXPORTER_OTLP_ENDPOINT 未找到或不唯一：" + OTEL_REL);
+  otel = blankValue(otel, "OTEL_EXPORTER_OTLP_HEADERS");
+  if (otel === null) die("OTEL_EXPORTER_OTLP_HEADERS 未找到或不唯一：" + OTEL_REL);
+  if (otel === before) die("OTEL 值未变化 - 已放弃，原文件未动");
+  console.log("  OK   OTEL 上报端点已清空");
+}
+m = applyOnce(m, CRASH_OLD, CRASH_NEW, "崩溃上报开关（远程->本地）");
 
 // ---------------------------------------------------------------- repack ----
 log("外科手术式重打包（数据区原样搬运，仅追加改动）...");
@@ -276,6 +334,8 @@ asar.patchEntries(asarPath, outTmp, {
   [MAIN_REL]: Buffer.from(m, "utf8"),
   [RENDER_REL]: Buffer.from(r, "utf8"),
   [HOST_REL]: Buffer.from(h, "utf8"),
+  [CORE_REL]: Buffer.from(core, "utf8"),
+  [OTEL_REL]: Buffer.from(otel, "utf8"),
 });
 const srcSize = fs.statSync(asarPath).size;
 const outSize = fs.statSync(outTmp).size;
@@ -300,6 +360,10 @@ const checks = [
   ["遥测 ARMS RUM 已关", vEntry(MAIN_REL).includes("Ns.init({enable:!1,")],
   ["遥测 磁盘用量 已关", vEntry(MAIN_REL).includes("function sP(e){return;$u(),Ba=mz({")],
   ["遥测 MCP 已关", vEntry(MAIN_REL).includes("function cP(e,t){return;")],
+  ["renderer 档位表", vEntry(RENDER_REL).includes("思考档位表") && vEntry(RENDER_REL).includes("__mhLevels")],
+  ["事件上报核心 已关", vEntry(CORE_REL).includes("async function x(C,S,I,k){return;")],
+  ["OTEL 端点 已清空", vEntry(OTEL_REL).includes('OTEL_EXPORTER_OTLP_ENDPOINT:""') && vEntry(OTEL_REL).includes('OTEL_EXPORTER_OTLP_HEADERS:""') && !vEntry(OTEL_REL).includes("proj-xtrace")],
+  ["崩溃上报 已本地化", vEntry(MAIN_REL).includes("var Vf=Hf(w,!1);")],
 ];
 let allOk = true;
 for (const [name, ok] of checks) {

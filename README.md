@@ -2,7 +2,7 @@
 
 给 **ZCode 桌面版** 注入第三方模型管理能力。非官方补丁，纯本地修改。
 
-**当前适配：ZCode Desktop 3.14.0**（模型设置页重构版 · Personal Model 架构）
+**当前适配：ZCode Desktop 3.14.1**（模型设置页重构版 · Personal Model 架构）
 
 [English](#english) | 中文
 
@@ -18,21 +18,27 @@
   - **粘性生效**：修改模型配置不会再把配好的头剥掉
 - ✅ 拉取 / 视觉探测自动**携带渠道的模拟请求头**（验客户端指纹的端点也能拉）
 - ✅ **视觉能力实测**：对勾选模型发送 1×1 测试图，OpenAI 与 Anthropic 两种协议分别适配，用真实响应判定，不靠名字猜
-- ✅ ZCode 风格选择面板：搜索、全选 / 全不选、逐个勾选
+- ✅ ZCode 风格选择面板：搜索、全选 / 全不选、逐个勾选；**再次拉取时默认勾选该渠道已选过的模型**（首次拉取默认全选），确认不会改动原有设置
 - ✅ **最终态语义**：确认添加后模型列表 = 勾选的模型（未勾选的自动移除，手动添加的保留）
-- ✅ **删除持久化**：删除的模型由 3.14.0 原生 `zcode.deletedModels` 墓碑承载，不再被目录同步复活
-- ✅ **隐私：关闭自动上报**（源码级关闭，还原即恢复）
+- ✅ **删除持久化**：删除的模型由原生 `zcode.deletedModels` 墓碑承载，不再被目录同步复活
+- ✅ **思考档位表**（个人模型编辑器）：新增「思考档位表」按钮，表格勾选推理等级
+  （off / on / minimal / low / medium / high / xhigh / max / ultra），自动按从低到高生成，
+  自定义档位自动保留——不用再逐个手打
+- ✅ **隐私：关闭全部自动上报**（源码级关闭，还原即恢复）
   - ARMS RUM 遥测（性能 / 点击 / 白屏 / 异常 / API）
   - `zcode-data-size` 磁盘用量定时上报
   - MCP 进程遥测（`[mcp-telemetry]`）
-- ✅ **修复：自定义 agent 启动命令时的存储初始化失败**（例如 keysmith 等自定义 `ZCODE_AGENT_SERVER_COMMAND` 场景下 3.14.0 会抛 `unsupported_runtime` 起不来）
-- ✅ **修复：`Plugin not found: computer-use@zcode-plugins-official`**（安装器把 3.14.0 自带的 computer-use 插件物化进插件仓）
+  - **事件上报**（`zcode.z.ai/api/v1/event/report`：app_launch / app_daily_active / session_create，含持久设备号）
+  - **链路与指标上报**（阿里云 ARMS OTLP：local-ttft / renderer-action-trace / agent 侧 `zcode-cli-agent`）
+  - **崩溃远程上报**（改为只保留本地转储）
+- ✅ **修复：自定义 agent 启动命令时的存储初始化失败**（例如 keysmith 等自定义 `ZCODE_AGENT_SERVER_COMMAND` 场景下会抛 `unsupported_runtime` 起不来）
+- ✅ **修复：`Plugin not found: computer-use@zcode-plugins-official`**（安装器把自带 computer-use 插件物化进插件仓）
 - ✅ **全消息可编辑**（可选引擎补丁）：解除"只有最后一条消息能编辑"的限制
 - ✅ 外科手术式安装：原数据区逐字节保留，原生模块零改动，全程约 5~30 秒
 - ✅ **原子安全**：所有写操作 = 临时文件 + 尺寸校验 + 改名，进程占用时安全失败而非写坏文件
 - ✅ 安装路径自动探测（注册表 + 常见位置），装在非 C 盘也能识别
 
-> v1.x 是为 3.13 及更早版本写的，其锚点在 3.14.0 中已不存在——**3.14.0 必须用本版（v2.0.0）**。
+> v1.x 是为 3.13 及更早版本写的，其锚点在 3.14 系中已不存在——**3.14.1 必须用本版（v2.1.0）**。
 > ZCode 每次大版本更新后，等本仓库更新适配再装；锚点不匹配时脚本会明确报错并放弃，不会改坏文件。
 
 ## 安装
@@ -67,9 +73,11 @@
 | 文件 | 注入内容 |
 |---|---|
 | `out/preload/index.cjs` | `zcode.modelhubFetchModels` / `modelhubProbeVision` 两个 IPC 桥 |
-| `out/main/index.js` | `modelhub:fetch-models` / `modelhub:probe-vision` 两个主进程处理器；三处遥测源码级关闭 |
-| `out/renderer/assets/styles-*.js` | 渠道编辑页按钮行（拉取模型 / 请求头模拟）+ 选择面板 + 视觉探测 + 最终态应用逻辑 |
+| `out/main/index.js` | `modelhub:fetch-models` / `modelhub:probe-vision` 两个主进程处理器；ARMS RUM / 磁盘用量 / MCP 三处遥测源码级关闭；崩溃上报开关改为本地 |
+| `out/renderer/assets/styles-*.js` | 渠道编辑页按钮行（拉取模型 / 请求头模拟）+ 选择面板 + 视觉探测 + 最终态应用逻辑；个人模型编辑器的「思考档位表」 |
 | `out/host/chunk-*.js` | 自定义 agent 启动命令分支补 `supportsStorageStartup` / `storagePreparationEntry` |
+| `out/main/chunk-*.js`（事件上报核心，按锚点定位） | `reportEvent` / `reportAppLaunch` / `reportAppDailyActive` 的发送函数直接返回，事件不再外发 |
+| `out/main/chunk-*.js`（OTEL 环境，按锚点定位） | 清空打包内嵌的 OTLP 端点与请求头，链路 / 指标不再外发（主进程、host、agent 一并生效） |
 
 安装采用**外科手术式**重打包：数据区逐字节保留，仅追加改动文件并重写头部索引，
 `app.asar.unpacked` 中的原生模块（终端依赖）完全不动；写盘 = 临时文件 + 尺寸校验 + 改名，
@@ -104,7 +112,7 @@ MIT
 # model-hub — Model Pull Patch for ZCode Desktop
 
 Injects third-party model management into the ZCode desktop app.
-**Built for ZCode Desktop 3.14.0** (the Personal Model settings refactor).
+**Built for ZCode Desktop 3.14.1** (the Personal Model settings refactor).
 
 - "Pull Models" button on both **add-provider** and **edit-provider** pages
 - **Dialect-aware fallback**: anthropic providers try `/v1/models` first, OpenAI-style try `/models` first, gemini uses `v1beta` — no need to type `/v1` manually
@@ -112,16 +120,20 @@ Injects third-party model management into the ZCode desktop app.
 - **Header simulation** (edit-provider page): full Claude (`claude-cli`) / Codex (`codex_cli_rs`) request header presets; check = applied, uncheck = removed; one-click clear-all; headers are sticky across model saves
 - Pull / vision probing automatically carry the channel's simulated headers (works on client-fingerprint-gated endpoints)
 - **Empirical vision probing**: 1×1 test image per model via `chat/completions` (OpenAI) or `v1/messages` (Anthropic)
-- ZCode-styled picker with search and per-model selection
+- ZCode-styled picker with search and per-model selection; **re-pulls pre-check the channel's existing models** (first pull checks all), so confirming never disturbs your current setup
 - Final-state semantics: confirmed selection becomes the channel model list (manual entries preserved)
 - Deletions persist via the native `zcode.deletedModels` tombstones
-- **Privacy: telemetry disabled at source** (ARMS RUM, disk-usage scheduler, MCP report) — fully restored by the restore script
+- **Reasoning-levels table** (personal-model editor): a 「思考档位表」 button to pick levels
+  (off / on / minimal / low / medium / high / xhigh / max / ultra) in a table, ordered low→high, custom values preserved
+- **Privacy: ALL uploads disabled at source** — ARMS RUM, disk-usage scheduler, MCP report,
+  the event-report core (`zcode.z.ai/api/v1/event/report`: app_launch / app_daily_active / session_create),
+  OTEL trace/metric export (Aliyun ARMS), and the remote crash-reporter flag — fully restored by the restore script
 - **Fixes**: custom-agent-command storage-preparation startup failure (`unsupported_runtime`); `Plugin not found: computer-use@zcode-plugins-official` (the installer materializes the bundled plugin)
 - Optional engine patch: **edit ALL user messages**, not just the latest one
 - Surgical asar repack (data region preserved byte-for-byte), read-back verified, atomic writes everywhere
 - Install path auto-detection (registry + common locations)
 
-**Requirements:** Windows, ZCode Desktop 3.14.0, [Node.js](https://nodejs.org)
+**Requirements:** Windows, ZCode Desktop 3.14.1, [Node.js](https://nodejs.org)
 
 **Usage:** download the release ZIP → fully quit ZCode (tray → Quit) → run `一键安装补丁.cmd` as admin → restart ZCode → Settings → Model Providers.
 

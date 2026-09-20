@@ -6,7 +6,7 @@
   const rr=await window.zcode.modelhubFetchModels(ctx.baseUrl,ctx.apiKey,ctx.provider&&ctx.provider.headers,dialect);
   if(!rr||!rr.ok){window.__mhToast('拉取失败：'+((rr&&rr.error)||'未知错误'),!1);return}
   if(!rr.models.length){window.__mhToast('该端点返回 0 个模型',!1);return}
-  window.__mhPick(rr.models,{baseUrl:ctx.baseUrl,apiKey:ctx.apiKey,headers:ctx.provider&&ctx.provider.headers,dialect:dialect,onConfirm:async sel=>{
+  window.__mhPick(rr.models,{baseUrl:ctx.baseUrl,apiKey:ctx.apiKey,headers:ctx.provider&&ctx.provider.headers,dialect:dialect,preselect:(ctx.models||[]).map(m=>m.modelId),onConfirm:async sel=>{
     try{
       const cur=(ctx.models||[]).map(m=>m.modelId);
       const fetched=new Set(rr.models.map(m=>m.id));
@@ -23,7 +23,7 @@
 }catch(e){window.__mhToast('拉取失败：'+((e&&e.message)||e),!1)}};
 ;window.__mhPick=function(items,opt){try{
   const old=document.getElementById('mh-picker-root');if(old)old.remove();
-  const S={items:items.map(m=>({id:m.id,vision:false,checked:true,probing:false}))};
+  const __prev=new Set(opt&&opt.preselect||[]);const S={items:items.map(m=>({id:m.id,vision:false,checked:__prev.size===0?true:__prev.has(m.id),probing:false}))};
   const root=document.createElement('div');root.id='mh-picker-root';
   root.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
   const panel=document.createElement('div');
@@ -197,3 +197,52 @@
     catch(e){if(window.__mhToast)window.__mhToast('写入失败：'+e,!1)}
   };
 }catch(e){console.error('[modelhub] headers error',e)}};
+;window.__mhLevels=function(current,cb){try{
+  const STD=[['off','关闭'],['on','开启'],['minimal','极低'],['low','低'],['medium','中'],['high','高'],['xhigh','极高'],['max','最高'],['ultra','极致']];
+  const cur=Array.isArray(current)?current.slice():[];
+  const curSet=new Set(cur);
+  const stdIds=STD.map(function(p){return p[0]});
+  const custom=cur.filter(function(v){return stdIds.indexOf(v)<0});
+  const old=document.getElementById('mh-levels-root');if(old)old.remove();
+  const root=document.createElement('div');root.id='mh-levels-root';
+  root.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+  const panel=document.createElement('div');
+  panel.style.cssText='width:520px;max-width:92vw;max-height:76vh;display:flex;flex-direction:column;background:#131316;color:#fafafa;border:1px solid #2e2e33;border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.5);font-size:13px;overflow:hidden';
+  const head=document.createElement('div');
+  head.style.cssText='padding:12px 16px;border-bottom:1px solid #26262b;font-weight:600';
+  head.textContent='思考档位表 — 勾选该模型支持的档位（从低到高）';
+  panel.appendChild(head);
+  const body=document.createElement('div');
+  body.style.cssText='padding:8px 16px 4px;overflow:auto';
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse';
+  const thead=document.createElement('thead');
+  thead.innerHTML='<tr style="color:#a1a1aa;text-align:left"><th style="padding:6px 4px;width:44px">选择</th><th style="padding:6px 4px;width:110px">档位</th><th style="padding:6px 4px">值</th></tr>';
+  table.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  const boxes={};
+  STD.forEach(function(pair){
+    const id=pair[0],label=pair[1];
+    const tr=document.createElement('tr');tr.style.cssText='border-top:1px solid #1f1f23';
+    const td1=document.createElement('td');td1.style.padding='6px 4px';
+    const c=document.createElement('input');c.type='checkbox';c.checked=curSet.has(id);c.style.cssText='width:14px;height:14px;accent-color:#3b82f6';
+    boxes[id]=c;td1.appendChild(c);
+    const td2=document.createElement('td');td2.style.padding='6px 4px';td2.textContent=label;
+    const td3=document.createElement('td');td3.style.padding='6px 4px';td3.style.fontFamily='monospace';td3.style.color='#a1a1aa';td3.textContent=id;
+    tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);body.appendChild(table);
+  if(custom.length){const note=document.createElement('div');note.style.cssText='padding:6px 4px;color:#a1a1aa';note.textContent='自定义档位（保留）：'+custom.join(', ');body.appendChild(note)}
+  panel.appendChild(body);
+  const foot=document.createElement('div');
+  foot.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:10px 16px;border-top:1px solid #26262b';
+  function mkBtn(t,fn,primary){const b=document.createElement('button');b.textContent=t;b.style.cssText='padding:6px 12px;border-radius:8px;border:1px solid '+(primary?'#3b82f6':'#3f3f46')+';background:'+(primary?'#3b82f6':'transparent')+';color:#fafafa;cursor:pointer;font-size:13px';b.onclick=fn;return b}
+  const left=document.createElement('div');left.style.cssText='display:flex;gap:8px';
+  left.appendChild(mkBtn('全选',function(){STD.forEach(function(p){boxes[p[0]].checked=true})}));
+  left.appendChild(mkBtn('清空',function(){STD.forEach(function(p){boxes[p[0]].checked=false})}));
+  const right=document.createElement('div');right.style.cssText='display:flex;gap:8px';
+  right.appendChild(mkBtn('取消',function(){root.remove()}));
+  right.appendChild(mkBtn('确认',function(){const sel=STD.filter(function(p){return boxes[p[0]].checked}).map(function(p){return p[0]}).concat(custom);if(sel.length===0){window.__mhToast&&window.__mhToast('至少选择一个思考档位',!1);return}root.remove();if(cb)cb(sel)},true));
+  foot.appendChild(left);foot.appendChild(right);panel.appendChild(foot);
+  root.appendChild(panel);document.body.appendChild(root);
+}catch(e){console.error('[modelhub] levels error',e)}};
