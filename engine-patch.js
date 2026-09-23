@@ -46,37 +46,47 @@ if (!file) {
 }
 if (!fs.existsSync(file)) { console.error("[x] 文件不存在: " + file); process.exit(1); }
 
-const P1_OLD =
-  'else if(A.kind==="userInput")A.rowId===w?(R.canEdit=!0,R.editDisposition="rewind"):(delete R.canEdit,delete R.editDisposition);';
-const P1_NEW =
-  'else if(A.kind==="userInput")this.entityIdByRowId.get(A.rowId)&&this.editTargetByEntityId.has(this.entityIdByRowId.get(A.rowId))&&this.messageIdByRowId.has(A.rowId)?(R.canEdit=!0,R.editDisposition="rewind"):(delete R.canEdit,delete R.editDisposition);';
+// P1 variants (minified loop variable shifts between builds): 3.14.3 -> E, 3.14.0/3.14.1 -> A
+const P1_VARIANTS = [
+  ["E", 'else if(E.kind==="userInput")E.rowId===w?(R.canEdit=!0,R.editDisposition="rewind"):(delete R.canEdit,delete R.editDisposition);'],
+  ["A", 'else if(A.kind==="userInput")A.rowId===w?(R.canEdit=!0,R.editDisposition="rewind"):(delete R.canEdit,delete R.editDisposition);'],
+];
+function p1New(v) {
+  return 'else if(' + v + '.kind==="userInput")this.entityIdByRowId.get(' + v + '.rowId)&&this.editTargetByEntityId.has(this.entityIdByRowId.get(' + v + '.rowId))&&this.messageIdByRowId.has(' + v + '.rowId)?(R.canEdit=!0,R.editDisposition="rewind"):(delete R.canEdit,delete R.editDisposition);';
+}
 const P2_OLD =
   "resolveEditTargetByEntityId(t){if(t!==this.currentEditableEntityId)return null;let n=this.editTargetByEntityId.get(t);";
 const P2_NEW = "resolveEditTargetByEntityId(t){let n=this.editTargetByEntityId.get(t);";
 
 let src = fs.readFileSync(file, "utf8");
 console.log("[*] 引擎: " + file + " (" + src.length + " 字节)");
-for (const [label, oldS] of [["P1 投影器", P1_OLD], ["P2 解析器", P2_OLD]]) {
-  console.log("  " + label + " 锚点: " + (src.split(oldS).length - 1));
-}
+for (const [v, oldS] of P1_VARIANTS) console.log("  P1(" + v + ") 锚点: " + (src.split(oldS).length - 1));
+console.log("  P2 解析器 锚点: " + (src.split(P2_OLD).length - 1));
 if (checkOnly) process.exit(0);
 
-const bothApplied = src.includes(P1_NEW) && src.includes(P2_NEW);
-if (bothApplied) {
+// already fully applied? -> nothing to do (do not touch the backup)
+const appliedP1 = P1_VARIANTS.find(([v]) => src.includes(p1New(v)));
+if (appliedP1 && src.includes(P2_NEW)) {
   console.log("  SKIP 引擎补丁已应用，无需重复安装");
   process.exit(0);
 }
 
-for (const [label, oldS, newS] of [["P1 投影器", P1_OLD, P1_NEW], ["P2 解析器", P2_OLD, P2_NEW]]) {
-  const n = src.split(oldS).length - 1;
-  if (n !== 1 && !(n === 0 && src.includes(newS))) {
-    console.error("[x] 锚点不匹配 [" + label + "]: 找到 " + n + " 处（应为 1）。当前 ZCode 版本尚未适配，已放弃修改，原文件未动。");
+const hit = P1_VARIANTS.find(([, oldS]) => src.split(oldS).length - 1 === 1);
+if (!hit) {
+  console.error("[x] P1 锚点未命中任何已知变体（3.14.3=E / 3.14.0-1=A）。当前 ZCode 版本尚未适配，已放弃修改，原文件未动。");
+  process.exit(1);
+}
+{
+  const n = src.split(P2_OLD).length - 1;
+  if (n !== 1 && !src.includes(P2_NEW)) {
+    console.error("[x] P2 锚点不匹配: 找到 " + n + " 处（应为 1）。原文件未动。");
     process.exit(1);
   }
 }
 
-const backup = file + ".modelhub-backup";
+// backup the pristine file (refreshed each time we are about to modify it)
 {
+  const backup = file + ".modelhub-backup";
   const bt = backup + ".tmp";
   fs.rmSync(bt, { force: true });
   fs.copyFileSync(file, bt);
@@ -85,15 +95,17 @@ const backup = file + ".modelhub-backup";
   console.log("[*] 备份原版 -> zcode.cjs.modelhub-backup");
 }
 
-for (const [label, oldS, newS] of [["P1 投影器", P1_OLD, P1_NEW], ["P2 解析器", P2_OLD, P2_NEW]]) {
-  const n = src.split(oldS).length - 1;
-  if (n === 1) { src = src.replace(oldS, newS); console.log("  OK   " + label); }
-  else if (src.includes(newS)) console.log("  SKIP " + label + "（已应用）");
-  else { console.error("[x] 锚点不匹配 [" + label + "]: 找到 " + n + " 处。原文件未动。"); process.exit(1); }
+let s = src.replace(hit[1], p1New(hit[0]));
+console.log("  OK   P1 投影器（变体 " + hit[0] + "）");
+{
+  const n = s.split(P2_OLD).length - 1;
+  if (n === 1) { s = s.replace(P2_OLD, P2_NEW); console.log("  OK   P2 解析器"); }
+  else if (s.includes(P2_NEW)) console.log("  SKIP P2 解析器（已应用）");
+  else { console.error("[x] P2 锚点不匹配。原文件未动。"); process.exit(1); }
 }
 
 const tmp = file + ".modelhub-tmp.cjs";
-fs.writeFileSync(tmp, src, "utf8");
+fs.writeFileSync(tmp, s, "utf8");
 try {
   require("child_process").execSync('node --check "' + tmp + '"', { stdio: "pipe" });
 } catch (e) {

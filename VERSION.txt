@@ -1,6 +1,13 @@
-适配版本: ZCode Desktop 3.14.1（模型设置页重构 / Personal Model 架构）
-补丁版本: v2.1.2
-构建时间: 2026-09-21
+适配版本: ZCode Desktop 3.14.3（模型设置页重构 / Personal Model 架构）
+补丁版本: v2.2.0
+构建时间: 2026-09-23
+
+v2.2.0（3.14.3 适配）:
+- 锚点重定位：渲染层模型编辑器组件改名（txn）+ 回调变量变化（addModel=Ae / deleteModel=Oe /
+  models=K）；档位表编辑器组件改名（gbn）；引擎补丁 P1 循环变量改名（A→E，补丁已支持双变体）
+- 其余 9 个锚点（preload / host 存储修复 / 遥测三处 / 事件上报核心 / OTEL 端点 / 崩溃开关 /
+  配置拉取）原样命中
+- 上传封堵 7 处全部保持生效
 
 v2.1.2 修复:
 - 关闭启动时的「功能开关配置拉取」（GET /api/v1/client/configs，请求头携带持久设备号 device_mid）：

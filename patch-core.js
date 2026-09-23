@@ -47,16 +47,17 @@ const HOST_NEW =
 const PRELOAD_ANCHOR = 'exposeInMainWorld("zcode",{connectRemote';
 const PRELOAD_NEW = 'exposeInMainWorld("zcode",{' + SNIP.preload + "connectRemote";
 
-// 3.14.1: models-editor component renamed mbn -> _bn, providerName helper nN -> Kk
+// 3.14.3: models-editor component txn (3.14.1 时叫 _bn), providerName helper nN,
+//         models K, callbacks: onModelCommit=De, onDeleteModel=Oe, onAddModel=Ae
 const MBN_ANCHOR =
-  "(0,$.jsx)(_bn,{providerId:e.providerId,providerName:Kk(e),providerEnabled:e.enabled,providerAccess:e.config.access,models:G,onTestModel:s?De:void 0,onModelCommit:Oe,onModelEnabledChange:Ae,onDeleteModel:ke,onAddModel:je,onReorderModelIds:c?Me:void 0,settingsRevision:g??0},e.providerId)";
+  "(0,$.jsx)(txn,{providerId:e.providerId,providerName:nN(e),providerEnabled:e.enabled,providerAccess:e.config.access,models:K,onTestModel:s?Ee:void 0,onModelCommit:De,onModelEnabledChange:ke,onDeleteModel:Oe,onAddModel:Ae,onReorderModelIds:c?je:void 0,settingsRevision:g??0},e.providerId)";
 const WRAP_PREFIX =
-  "(0,$.jsxs)(`div`,{className:`space-y-2`,children:[(0,$.jsx)(`div`,{className:`flex justify-end gap-2`,children:[(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,onClick:__ev=>{try{window.__mhHeaders(e,__p=>{t&&t(__p)},__ev&&__ev.currentTarget)}catch(__e){window.__mhToast&&window.__mhToast(`请求头面板异常：`+__e,!1)}},children:`请求头模拟`}),(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,disabled:l,onClick:__ev=>{try{window.__mhPull&&window.__mhPull({provider:e,baseUrl:E,apiKey:O,format:w,models:G,addModel:je,deleteModel:ke,anchor:__ev&&__ev.currentTarget})}catch(__e){window.__mhToast&&window.__mhToast(`拉取面板异常：`+__e,!1)}},children:`拉取模型`})]}),";
+  "(0,$.jsxs)(`div`,{className:`space-y-2`,children:[(0,$.jsx)(`div`,{className:`flex justify-end gap-2`,children:[(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,onClick:__ev=>{try{window.__mhHeaders(e,__p=>{t&&t(__p)},__ev&&__ev.currentTarget)}catch(__e){window.__mhToast&&window.__mhToast(`请求头面板异常：`+__e,!1)}},children:`请求头模拟`}),(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,disabled:l,onClick:__ev=>{try{window.__mhPull&&window.__mhPull({provider:e,baseUrl:E,apiKey:O,format:w,models:K,addModel:Ae,deleteModel:Oe,anchor:__ev&&__ev.currentTarget})}catch(__e){window.__mhToast&&window.__mhToast(`拉取面板异常：`+__e,!1)}},children:`拉取模型`})]}),";
 const WRAP_SUFFIX = "]}),";
 
-// 3.14.1 NEW: reasoning-levels table button, wrapped around the levels list editor (Fyn)
+// 3.14.3: reasoning-levels list editor component gbn (3.14.1 时叫 Myn)
 const LEVELS_ANCHOR =
-  "(0,$.jsx)(Myn,{values:e.reasoningLevelValuesValue,overridden:r?r.has(`reasoningLevelValuesValue`):t?.optionSpecs?.reasoningLevel?.values!==void 0,addLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelAdd`}),deleteLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelDelete`}),onChange:e=>i({reasoningLevelValuesValue:e})})";
+  "(0,$.jsx)(gbn,{values:e.reasoningLevelValuesValue,overridden:r?r.has(`reasoningLevelValuesValue`):t?.optionSpecs?.reasoningLevel?.values!==void 0,addLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelAdd`}),deleteLabel:a.formatMessage({id:`settings.modelProvider.reasoningLevelDelete`}),onChange:e=>i({reasoningLevelValuesValue:e})})";
 const LEVELS_PREFIX =
   "(0,$.jsxs)(`div`,{className:`space-y-2`,children:[(0,$.jsx)(X,{type:`button`,size:`sm`,variant:`outline`,onClick:__ev=>{try{window.__mhLevels&&window.__mhLevels(e.reasoningLevelValuesValue,__p=>{i({reasoningLevelValuesValue:__p})},__ev&&__ev.currentTarget)}catch(__e){window.__mhToast&&window.__mhToast(`档位表异常：`+__e,!1)}},children:`思考档位表`}),";
 const LEVELS_SUFFIX = "]}),";

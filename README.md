@@ -2,7 +2,7 @@
 
 给 **ZCode 桌面版** 注入第三方模型管理能力。非官方补丁，纯本地修改。
 
-**当前适配：ZCode Desktop 3.14.1**（模型设置页重构版 · Personal Model 架构）
+**当前适配：ZCode Desktop 3.14.3**（模型设置页重构版 · Personal Model 架构）
 
 [English](#english) | 中文
 
@@ -38,7 +38,7 @@
 - ✅ **原子安全**：所有写操作 = 临时文件 + 尺寸校验 + 改名，进程占用时安全失败而非写坏文件
 - ✅ 安装路径自动探测（注册表 + 常见位置），装在非 C 盘也能识别
 
-> v1.x 是为 3.13 及更早版本写的，其锚点在 3.14 系中已不存在——**3.14.1 必须用本版（v2.1.0）**。
+> v1.x 是为 3.13 及更早版本写的，其锚点在 3.14 系中已不存在——**3.14.3 必须用本版（v2.2.0）**。
 > ZCode 每次大版本更新后，等本仓库更新适配再装；锚点不匹配时脚本会明确报错并放弃，不会改坏文件。
 
 ## 安装
@@ -112,7 +112,7 @@ MIT
 # model-hub — Model Pull Patch for ZCode Desktop
 
 Injects third-party model management into the ZCode desktop app.
-**Built for ZCode Desktop 3.14.1** (the Personal Model settings refactor).
+**Built for ZCode Desktop 3.14.3** (the Personal Model settings refactor).
 
 - "Pull Models" button on both **add-provider** and **edit-provider** pages
 - **Dialect-aware fallback**: anthropic providers try `/v1/models` first, OpenAI-style try `/models` first, gemini uses `v1beta` — no need to type `/v1` manually
@@ -133,7 +133,7 @@ Injects third-party model management into the ZCode desktop app.
 - Surgical asar repack (data region preserved byte-for-byte), read-back verified, atomic writes everywhere
 - Install path auto-detection (registry + common locations)
 
-**Requirements:** Windows, ZCode Desktop 3.14.1, [Node.js](https://nodejs.org)
+**Requirements:** Windows, ZCode Desktop 3.14.3, [Node.js](https://nodejs.org)
 
 **Usage:** download the release ZIP → fully quit ZCode (tray → Quit) → run `一键安装补丁.cmd` as admin → restart ZCode → Settings → Model Providers.
 
